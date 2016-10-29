@@ -34,4 +34,17 @@ you can execute the following command to run the following command:
 ./gradlew run
 ```
 
+# Downloading new Maps
+PEMSS works with Open Street Map files.
+To download a new map,
+go to https://www.openstreetmap.org/export
+from your browser and zoom in to
+the portion of the map that you are interested in.
+Avoid downloading larger maps than necessary
+since it results in large map files and
+longer processing time for the algorithms.
+Click on the `Export` button and save the file
+as `maps/map.xml` inside the project directory.
+You need to restart PEMSS if it is already running
+to load the new map.
 
