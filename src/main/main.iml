@@ -7,5 +7,7 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" name="org.javabits.jgrapht:jgrapht-core:0.9.3" level="project" />
+    <orderEntry type="library" name="br.com.objectos.testable:guava:0.6.0" level="project" />
   </component>
 </module>

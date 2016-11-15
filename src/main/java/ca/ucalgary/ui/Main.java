@@ -1,10 +1,7 @@
 package ca.ucalgary.ui;
 
 import ca.ucalgary.*;
-import ca.ucalgary.algorithms.Distributor;
-import ca.ucalgary.algorithms.MaxFlowAlgorithm;
-import ca.ucalgary.algorithms.ShortestPathAlgorithm;
-import ca.ucalgary.algorithms.TimeExpandedAlgorithm;
+import ca.ucalgary.algorithms.*;
 import ca.ucalgary.mapgraph.*;
 import ca.ucalgary.sim.Zone;
 import ca.ucalgary.sim.SimpleDemandEstimator;
@@ -21,6 +18,8 @@ import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 
 public class Main {
 
@@ -69,7 +68,7 @@ public class Main {
         JButton cancelZoneBtn = new JButton("Cancel Zone");
         JButton maxFlowBtn = new JButton("Max Flow");
         JButton shortestPathBtn = new JButton("Shortest Path");
-        JButton timeExpandedBtn = new JButton("Augmented Graph");
+        JButton timeExpandedBtn = new JButton("OEPA+");
 
         NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.getDefault());
         DecimalFormat decimalFormat = (DecimalFormat) numberFormat;
@@ -89,27 +88,24 @@ public class Main {
         cancelZoneBtn.addActionListener(e -> mapPanel.cancelZone());
         selectionPanel.add(cancelZoneBtn);
 
-        maxFlowBtn.addActionListener(e -> {
-            MaxFlowAlgorithm algorithm = new MaxFlowAlgorithm();
+        BiConsumer<String, EvacuationAlgorithm> runWith = (label, algorithm) -> {
             Map<Intersection, ? extends Distributor> distributors = algorithm.solve(mapGraph, mapPanel.getHotZones(), mapPanel.getSafeZones());
             Simulator simulator = new Simulator(mapGraph, distributors, mapPanel.getSafeZones(), mapPanel.getHotZones(), Integer.parseInt(numOfEvacueesTxt.getText()));
-            JOptionPane.showMessageDialog(mapPanel, "Max Flow Time = " + simulator.run());
+            JOptionPane.showMessageDialog(mapPanel, label + " results: " + simulator.run());
+        };
+
+        maxFlowBtn.addActionListener(e -> {
+            runWith.accept("Max Flow", new MaxFlowAlgorithm());
         });
         selectionPanel.add(maxFlowBtn);
 
         shortestPathBtn.addActionListener(e -> {
-            ShortestPathAlgorithm algorithm = new ShortestPathAlgorithm();
-            Map<Intersection, ? extends Distributor> distributors = algorithm.solve(mapGraph, mapPanel.getHotZones(), mapPanel.getSafeZones());
-            Simulator simulator = new Simulator(mapGraph, distributors, mapPanel.getSafeZones(), mapPanel.getHotZones(), Integer.parseInt(numOfEvacueesTxt.getText()));
-            JOptionPane.showMessageDialog(mapPanel, "Shortest Path Time = " + simulator.run());
+            runWith.accept("Shortest Path", new ShortestPathAlgorithm());
         });
         selectionPanel.add(shortestPathBtn);
 
         timeExpandedBtn.addActionListener(e -> {
-            TimeExpandedAlgorithm algorithm = new TimeExpandedAlgorithm();
-            Map<Intersection, ? extends Distributor> distributors = algorithm.solve(mapGraph, mapPanel.getHotZones(), mapPanel.getSafeZones());
-            Simulator simulator = new Simulator(mapGraph, distributors, mapPanel.getSafeZones(), mapPanel.getHotZones(), Integer.parseInt(numOfEvacueesTxt.getText()));
-            JOptionPane.showMessageDialog(mapPanel, "Augmented Graph Time = " + simulator.run());
+            runWith.accept("OEPA+", new TimeExpandedAlgorithm());
         });
         selectionPanel.add(timeExpandedBtn);
 
@@ -118,6 +114,10 @@ public class Main {
         frame.add(selectionPanel, BorderLayout.SOUTH);
         // ----
         frame.setVisible(true);
+    }
+
+
+    private static void runWith(String label, EvacuationAlgorithm algorithm) {
     }
 
 }
