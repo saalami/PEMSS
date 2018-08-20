@@ -22,7 +22,6 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
 public class Main {
-
     public static void main(String[] args) throws Exception {
         SwingUtilities.invokeLater(() -> {
             try {
@@ -34,8 +33,8 @@ public class Main {
     }
 
     private static void createAndShowGUI() throws ParserConfigurationException, SAXException, IOException {
-
-        final MapGraph mapGraph = new MapParser().parse(new File("maps/map.xml"));
+        final String MAP_NAME = "calgary";
+        final MapGraph mapGraph = new MapParser().parse(new File("maps/" + MAP_NAME + ".xml")).trim(3);
         System.out.println(mapGraph.getBounds());
         MapFrame frame = new MapFrame();
         final MapPanel mapPanel = new MapPanel(mapGraph);
@@ -91,7 +90,9 @@ public class Main {
         BiConsumer<String, EvacuationAlgorithm> runWith = (label, algorithm) -> {
             Map<Intersection, ? extends Distributor> distributors = algorithm.solve(mapGraph, mapPanel.getHotZones(), mapPanel.getSafeZones());
             Simulator simulator = new Simulator(mapGraph, distributors, mapPanel.getSafeZones(), mapPanel.getHotZones(), Integer.parseInt(numOfEvacueesTxt.getText()));
-            JOptionPane.showMessageDialog(mapPanel, label + " results: " + simulator.run());
+            Simulator.SimulationResult result = simulator.run();
+            JOptionPane.showMessageDialog(mapPanel, label + ": " + result);
+            result.writeCSV(new File("out"), label + "-" + MAP_NAME);
         };
 
         maxFlowBtn.addActionListener(e -> {
@@ -104,8 +105,9 @@ public class Main {
         });
         selectionPanel.add(shortestPathBtn);
 
+        final TimeExpandedAlgorithm TIME_EXPANDED_ALGORITHM = new TimeExpandedAlgorithm();
         timeExpandedBtn.addActionListener(e -> {
-            runWith.accept("OEPA+", new TimeExpandedAlgorithm());
+            runWith.accept("OEPA+", TIME_EXPANDED_ALGORITHM);
         });
         selectionPanel.add(timeExpandedBtn);
 

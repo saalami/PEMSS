@@ -6,7 +6,8 @@ import ca.ucalgary.mapgraph.MapGraph;
 import ca.ucalgary.mapgraph.Way;
 import ca.ucalgary.ui.ZoneBoundary;
 import org.jgrapht.GraphPath;
-import org.jgrapht.alg.DijkstraShortestPath;
+import org.jgrapht.alg.shortestpath.DijkstraShortestPath;
+import org.jgrapht.alg.shortestpath.ListSingleSourcePathsImpl;
 import org.jgrapht.graph.DefaultWeightedEdge;
 import org.jgrapht.graph.SimpleWeightedGraph;
 
@@ -57,11 +58,13 @@ public class ShortestPathAlgorithm implements EvacuationAlgorithm {
 
         HashMap<Intersection, Distributor> distMap = new HashMap<>();
 
+        org.jgrapht.alg.interfaces.ShortestPathAlgorithm<Intersection, DefaultWeightedEdge> sp =
+                new DijkstraShortestPath<>(g);
+
         mapGraph.intersections().forEach(intr -> {
             if (intr.isInZones(hotZones)) {
                 System.out.println(intr);
-                DijkstraShortestPath<Intersection, DefaultWeightedEdge> sp = new DijkstraShortestPath<>(g, intr, TARGET);
-                GraphPath<Intersection, DefaultWeightedEdge> path = sp.getPath();
+                GraphPath<Intersection, DefaultWeightedEdge> path = sp.getPath(intr, TARGET);
                 if (path == null) {
                     System.out.printf("No route to TARGET for %s%n", intr);
                 } else {

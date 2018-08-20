@@ -5,7 +5,8 @@ import static ca.ucalgary.mapgraph.Intersection.*;
 import ca.ucalgary.mapgraph.MapGraph;
 import ca.ucalgary.mapgraph.Way;
 import ca.ucalgary.ui.ZoneBoundary;
-import org.jgrapht.alg.EdmondsKarpMaximumFlow;
+import org.jgrapht.alg.flow.EdmondsKarpMFImpl;
+import org.jgrapht.alg.flow.MaximumFlowAlgorithmBase;
 import org.jgrapht.graph.DefaultWeightedEdge;
 import org.jgrapht.graph.SimpleDirectedWeightedGraph;
 
@@ -63,10 +64,10 @@ public class MaxFlowAlgorithm implements EvacuationAlgorithm {
             }
         }
 
-        EdmondsKarpMaximumFlow<Intersection, DefaultWeightedEdge> maxFlow = new EdmondsKarpMaximumFlow<>(g, 0.001);
+        MaximumFlowAlgorithmBase<Intersection, DefaultWeightedEdge> maxFlow = new EdmondsKarpMFImpl<>(g, 0.001);
         maxFlow.calculateMaximumFlow(SOURCE, TARGET);
 
-        Map<DefaultWeightedEdge, Double> linksFlow = maxFlow.getMaximumFlow();
+        Map<DefaultWeightedEdge, Double> linksFlow = maxFlow.getFlowMap();
         Map<Intersection, List<Map.Entry<DefaultWeightedEdge, Double>>> grouped = new HashMap<>();
 
         linksFlow.entrySet().forEach(e -> {

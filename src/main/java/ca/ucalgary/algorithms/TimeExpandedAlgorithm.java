@@ -5,7 +5,8 @@ import ca.ucalgary.mapgraph.Intersection;
 import ca.ucalgary.mapgraph.MapGraph;
 import ca.ucalgary.mapgraph.Way;
 import ca.ucalgary.ui.ZoneBoundary;
-import org.jgrapht.alg.EdmondsKarpMaximumFlow;
+import org.jgrapht.alg.flow.MaximumFlowAlgorithmBase;
+import org.jgrapht.alg.flow.PushRelabelMFImpl;
 import org.jgrapht.graph.DefaultWeightedEdge;
 import org.jgrapht.graph.SimpleDirectedWeightedGraph;
 
@@ -17,19 +18,31 @@ import static ca.ucalgary.mapgraph.Intersection.SOURCE;
 import static ca.ucalgary.mapgraph.Intersection.TARGET;
 
 public class TimeExpandedAlgorithm implements EvacuationAlgorithm {
+    int i = 0;
+    private HashMap<Intersection, TIDistributor> distMapCache;
 
     @Override
     public HashMap<Intersection, TIDistributor> solve(MapGraph mapGraph, Set<ZoneBoundary> hotZones, Set<ZoneBoundary> safeZones) {
+
+        if (distMapCache != null)
+            return distMapCache;
+
         double infCap = 100000;
-        int timespan = 1200;
+        int timespan = 1500;
 
         Collection<Intersection> intersections = mapGraph.getIntersections();
         SimpleDirectedWeightedGraph<TI, DefaultWeightedEdge> g = new SimpleDirectedWeightedGraph<>(DefaultWeightedEdge.class);
 
+        System.out.println("Adding source and target");
         g.addVertex(TI.SOURCE);
         g.addVertex(TI.TARGET);
-        intersections.forEach(intr -> IntStream.range(0, timespan).forEach(t -> g.addVertex(new TI(intr, t))));
 
+        System.out.println("Adding intersections");
+        intersections.forEach(intr -> {
+            IntStream.range(0, timespan).forEach(t -> g.addVertex(new TI(intr, t)));
+        });
+
+        System.out.println("Creating the time expanded network ...");
         for (Way way : mapGraph.getWays()) {
             ArrayList<Intersection> wayInts = way.getIntersections();
             for (int i = 1; i < wayInts.size(); i++) {
@@ -37,6 +50,8 @@ public class TimeExpandedAlgorithm implements EvacuationAlgorithm {
                 Intersection v = wayInts.get(i);
 
                 int len = Math.max(1, (int) Util.dist(u, v));
+
+                System.out.println("len = " + len);
 
                 for (int t = 0; t < timespan - len; t++) {
                     double capacity = way.getType().getCapacity();
@@ -56,26 +71,39 @@ public class TimeExpandedAlgorithm implements EvacuationAlgorithm {
             }
         }
 
-        for (Intersection intersection : intersections) {
+        System.out.printf("Adding %s intersections ...%n", intersections.size());
+
+        i = 0;
+        intersections.parallelStream().forEach((intersection) -> {
+            if (i % 1000 == 0) {
+                System.out.println("intersections: " + i);
+            }
+            i++;
             if (intersection.isInZones(safeZones)) {
                 for (int t = 0; t < timespan; t++) {
-                    DefaultWeightedEdge e = g.addEdge(new TI(intersection, t), TI.TARGET);
-                    g.setEdgeWeight(e, infCap);
+                    synchronized (g) {
+                        DefaultWeightedEdge e = g.addEdge(new TI(intersection, t), TI.TARGET);
+                        g.setEdgeWeight(e, infCap);
+                    }
                 }
             } else if (intersection.isInZones(hotZones)) {
                 for (int t = 0; t < timespan; t++) {
-                    DefaultWeightedEdge e = g.addEdge(TI.SOURCE, new TI(intersection, t));
-                    g.setEdgeWeight(e, infCap);
+                    synchronized (g) {
+                        DefaultWeightedEdge e = g.addEdge(TI.SOURCE, new TI(intersection, t));
+                        g.setEdgeWeight(e, infCap);
+                    }
                 }
             }
-        }
+        });
 
-        EdmondsKarpMaximumFlow<TI, DefaultWeightedEdge> maxFlow = new EdmondsKarpMaximumFlow<>(g, 0.001);
+        System.out.println("Finding max flow in time expanded network");
+
+        MaximumFlowAlgorithmBase<TI, DefaultWeightedEdge> maxFlow = new PushRelabelMFImpl<>(g, 0.1);
         maxFlow.calculateMaximumFlow(TI.SOURCE, TI.TARGET);
 
         System.out.printf("max flow value = %s%n", maxFlow.getMaximumFlowValue());
 
-        Map<DefaultWeightedEdge, Double> linksFlow = maxFlow.getMaximumFlow();
+        Map<DefaultWeightedEdge, Double> linksFlow = maxFlow.getFlowMap();
         HashMap<Intersection, TIDistributor> distMap = new HashMap<>();
 
         linksFlow.entrySet().parallelStream().forEach(e -> {
@@ -92,11 +120,13 @@ public class TimeExpandedAlgorithm implements EvacuationAlgorithm {
                 }
 
                 tiDistributor.set(u.getTime(), v.getIntersection(), flow);
-                if (flow > 0) {
-                    System.out.printf("Non-zero flow %n");
-                }
+                System.out.printf("Non-zero flow %s %n", flow);
+            } else {
+                // System.out.println("Zero flow: " + e);
             }
         });
+
+        distMapCache = distMap;
 
         return distMap;
     }

@@ -6,6 +6,10 @@ import ca.ucalgary.mapgraph.MapGraph;
 import ca.ucalgary.mapgraph.Way;
 import ca.ucalgary.ui.ZoneBoundary;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.PrintStream;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +23,7 @@ public class Simulator {
         private int totalTravelTime = 0;
         private int totalDemand = 0;
         private int totalServed = 0;
+        private List<Integer> servedInEachTimeSlot = new ArrayList<>();
 
         private SimulationResult(){}
 
@@ -38,12 +43,31 @@ public class Simulator {
             return totalServed;
         }
 
+        public List<Integer> getServedInEachTimeSlot() {
+            return servedInEachTimeSlot;
+        }
+
         @Override
         public String toString() {
             return String.format(
                     "Time: %s, Total Travel Time: %s, Evacuees Served: %s",
                     time, totalTravelTime, totalServed
             );
+        }
+
+        public void writeCSV(File dir, String tag) {
+            String fileName = String.format("%s-%s.csv", tag, totalDemand);
+            System.out.println("Writing CSV to " + fileName);
+            try(PrintStream out = new PrintStream(new File(dir, fileName))) {
+                int totalSoFar = 0;
+                for (int i = 0; i < servedInEachTimeSlot.size(); i++) {
+                    int thisTS = servedInEachTimeSlot.get(i);
+                    totalSoFar += thisTS;
+                    out.printf("%s, %s, %s, %s%n", i, thisTS, totalSoFar, totalDemand);
+                }
+            } catch (FileNotFoundException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -53,7 +77,6 @@ public class Simulator {
     private Set<ZoneBoundary> safeZones;
     private Set<ZoneBoundary> hotZones;
     private SimulationResult result;
-
 
     private final ArrayList<EdgeQueue> edgeQueues = new ArrayList<>(1024 * 4);
 
@@ -75,10 +98,12 @@ public class Simulator {
     }
 
     private boolean finished() {
-        return 0.98 * result.totalDemand <= result.totalServed;
+        return 0.985 * result.totalDemand <= result.totalServed;
     }
 
+    int servedThisTimeslot = 0;
     private void iterate() {
+        servedThisTimeslot = 0;
         result.time++;
         System.out.printf("%s: %s of %s%n", result.time, result.totalServed, result.totalDemand);
         edgeQueues.parallelStream().forEach(q -> {
@@ -87,11 +112,12 @@ public class Simulator {
                 if (u.equals(Intersection.TARGET) || u.isInZones(safeZones)) {
                     result.totalServed++;
                     result.totalTravelTime += result.time;
+                    servedThisTimeslot++;
                 } else {
                     Distributor distributor = distributors.get(u);
                     if (distributor != null) {
                         Intersection v = distributor.to(result.time);
-                        // System.out.printf("Sending %s from %s to %s%n", e, u, v);
+                        System.out.printf("Sending %s from %s to %s, result so far: %s%n", e, u, v, result);
                         EdgeQueue q2 = EdgeQueue.find(u, v);
                         q2.evacueeEnter(e, result.time);
                     } else {
@@ -100,6 +126,7 @@ public class Simulator {
                 }
             });
         });
+        result.servedInEachTimeSlot.add(servedThisTimeslot);
     }
 
     private void init() {

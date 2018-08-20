@@ -77,8 +77,8 @@ public class MapPanel extends JPanel {
                                 i.isInZones(getSafeZones()) ? Color.BLUE : Color.BLACK
                         );
 
-                        g2.setColor(c);
-                        g2.drawString(i.toString(), scaler2D.xGeoToPanel(i.getLon()), scaler2D.yGeoToPanel(i.getLat()));
+//                        g2.setColor(c);
+//                        g2.drawString(i.toString(), scaler2D.xGeoToPanel(i.getLon()), scaler2D.yGeoToPanel(i.getLat()));
                     });
                 }
             }
